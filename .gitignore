@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env.local
+.impeccable/
+*.log
+
+skills-lock.json
+.claude/
+CLAUDE.md
+PRD.md
+DESIGN.md
+PRODUCT.md

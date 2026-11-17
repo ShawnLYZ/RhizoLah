@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RhizoLah! Mangrove Sensor Node – 3D</title>
+<style>
+  :root{
+    --panel: rgba(14,26,22,.78); --line: rgba(255,255,255,.12); --txt:#e9f2ec; --mut:#9db3a6;
+    --ok:#4fd08a; --warn:#f2b84b; --bad:#f0655a; --info:#6fc3e8; --off:#7d8a84;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#bfd3c4;font-family:Arial,Helvetica,sans-serif;color:var(--txt)}
+  canvas{display:block}
+  .panel{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  #left{left:14px;top:14px;bottom:14px;width:268px;padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto}
+  h1{font-size:17px;margin:0;letter-spacing:.2px}
+  .sub{font-size:11.5px;color:var(--mut);line-height:1.4}
+  #cards{display:flex;flex-direction:column;gap:6px}
+  .card{display:grid;grid-template-columns:8px 1fr auto;gap:0 9px;align-items:center;padding:7px 9px 7px 0;border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.04);cursor:pointer;text-align:left;color:inherit;font:inherit;width:100%}
+  .card:hover,.card.sel{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.3)}
+  .card .bar{grid-row:1/3;align-self:stretch;border-radius:9px 0 0 9px;background:var(--off)}
+  .card .nm{font-size:11.5px;color:var(--mut)}
+  .card .val{grid-row:1/3;grid-column:3;font-size:19px;font-weight:bold;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .card .val small{font-size:10.5px;font-weight:normal;color:var(--mut);margin-left:3px}
+  .card .st{font-size:10.5px}
+  .card[data-s=ok] .bar{background:var(--ok)}   .card[data-s=ok] .st{color:var(--ok)}
+  .card[data-s=warn] .bar{background:var(--warn)} .card[data-s=warn] .st{color:var(--warn)}
+  .card[data-s=bad] .bar{background:var(--bad)}  .card[data-s=bad] .st{color:var(--bad)}
+  .card[data-s=info] .bar{background:var(--info)} .card[data-s=info] .st{color:var(--info)}
+  .card[data-s=off] .st{color:var(--off)} .card[data-s=off] .val{opacity:.45}
+  #ctrl{right:14px;bottom:14px;width:268px;padding:12px 14px;font-size:12px}
+  #ctrl label{display:flex;justify-content:space-between;margin-top:8px;color:var(--mut)}
+  #ctrl label b{color:var(--txt);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:#4fd08a;margin:3px 0 0}
+  .row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .btn{flex:1 1 auto;padding:6px 8px;border-radius:7px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--txt);font:inherit;font-size:11.5px;cursor:pointer}
+  .btn:hover{background:rgba(255,255,255,.14)} .btn.on{background:#2f7d55;border-color:#4fd08a}
+  #info{right:14px;top:14px;width:300px;padding:13px 14px;font-size:12px;line-height:1.45;display:none;max-height:calc(100% - 380px);overflow:auto}
+  #info h2{font-size:14px;margin:0 22px 4px 0}
+  #info .x{position:absolute;right:8px;top:6px;border:0;background:none;color:var(--mut);font-size:18px;cursor:pointer}
+  #info dl{margin:8px 0 0;display:grid;grid-template-columns:62px 1fr;gap:5px 8px}
+  #info dt{color:var(--mut)} #info dd{margin:0}
+  .chip{display:inline-block;padding:1px 7px;border-radius:9px;background:rgba(79,208,138,.18);border:1px solid rgba(79,208,138,.4);margin:0 4px 4px 0;font-size:11px}
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;transform:translate(-50%,-100%);padding:3px 8px;border-radius:10px;background:rgba(10,20,16,.72);border:1px solid rgba(255,255,255,.22);font-size:11px;white-space:nowrap;pointer-events:auto;cursor:pointer}
+  .lbl::after{content:"";position:absolute;left:50%;top:100%;width:1px;height:12px;background:rgba(255,255,255,.55)}
+  .lbl:hover{background:#2f7d55}
+  #hint{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);font-size:11px;color:#1d3027;background:rgba(255,255,255,.55);padding:4px 10px;border-radius:10px;pointer-events:none}
+  #err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#10201a;padding:30px;text-align:center;font-size:14px;line-height:1.5}
+  @media (max-width:820px){
+    #left{width:auto;right:14px;bottom:auto;max-height:42%}
+    #cards{display:grid;grid-template-columns:1fr 1fr}
+    #info{left:14px;right:14px;width:auto;top:auto;bottom:200px;max-height:30%}
+    #ctrl{left:14px;width:auto} #hint{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="labels"></div>
+
+<div id="left" class="panel">
+  <div>
+    <h1>RhizoLah! Mangrove Sensor Node</h1>
+    <div class="sub">10 live parameters and 2 worked out from the wave gauge · Mangrove Focus kit · simulated readings.<br>Click a reading or a sensor to fly to it.</div>
+  </div>
+  <div id="cards"></div>
+  <div class="sub">Wave statistics use a 20 s burst here; the real node uses 10 min. Water probes are flagged below 0.25 m of water, the tilt meter below 0.65 m. Mud redox shows which microbes the mud can support; naming the species needs a lab DNA test of a mud sample.</div>
+</div>
+
+<div id="info" class="panel"><button class="x" id="infoX" aria-label="Close">×</button><div id="infoBody"></div></div>
+
+<div id="ctrl" class="panel">
+  <b>Environment</b>
+  <label>Tide / water level <b id="vTide"></b></label>
+  <input id="sTide" type="range" min="0" max="1.8" step="0.01" value="0.95">
+  <label>Incoming wave height <b id="vWave"></b></label>
+  <input id="sWave" type="range" min="0" max="1.2" step="0.01" value="0.3">
+  <label>Tidal current <b id="vCur"></b></label>
+  <input id="sCur" type="range" min="0" max="1.6" step="0.01" value="0.25">
+  <label>Flooded hours a day <b id="vFld"></b></label>
+  <input id="sFld" type="range" min="0" max="24" step="0.5" value="7">
+  <label>Mud build-up since install <b id="vBed"></b></label>
+  <input id="sBed" type="range" min="-8" max="8" step="0.5" value="1.5">
+  <div class="row">
+    <button class="btn" id="bAuto">Auto tide</button>
+    <button class="btn" id="bXray">X-ray mud</button>
+    <button class="btn on" id="bLbl">Labels</button>
+    <button class="btn" id="bReset">Reset view</button>
+  </div>
+</div>
+<div id="hint">Drag to orbit · scroll to zoom · right-drag to pan</div>
+<div id="err"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script>
+  window.addEventListener('error', e => {
+    const el = document.getElementById('err');
+    if (!window.__sceneReady) { el.style.display = 'flex';
+      el.textContent = 'Could not start the 3D scene. three.js loads from cdn.jsdelivr.net, so an internet connection and WebGL are needed. (' + (e.message || 'load error') + ')'; }
+  }, true);
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ───────────── helpers ───────────── */
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const sstep = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+let seed = 20261116;
+const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const rr = (a, b) => a + rnd() * (b - a);
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+/* ───────────── site constants (metres) ───────────── */
+const MOUNT_H = 3.0;                 // ultrasonic face above the mud (MOUNT_H_M)
+const TILT_K = 0.81;                 // v = k·√tanθ
+const P = {                          // where things stand
+  pole:  V(0, 0, 0),
+  ultra: V(1.0, MOUNT_H, 0),
+  guard: V(-0.25, 0, -1.35),
+  tilt:  V(1.3, 0, 2.3),
+  soil:  V(-1.55, 0, 1.4),
+  redox: V(-1.2, 0, 1.75),
+  staff: V(2.4, 0, -1.4),
+};
+
+function ground(x, z) {
+  let h = 0.9 * sstep(-3, -14, x) - 0.75 * sstep(4, 12, x);
+  const n = 0.05 * (Math.sin(x * 1.3 + z * 0.7) + 0.6 * Math.sin(z * 1.9 - x * 0.4)) + 0.02 * Math.sin(x * 4.1) * Math.cos(z * 3.7);
+  return h + n * sstep(1.2, 4.5, Math.hypot(x - 0.6, z - 0.4));
+}
+for (const k in P) if (k !== 'ultra') P[k].y = ground(P[k].x, P[k].z);
+
+/* ───────────── renderer / scene ───────────── */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+{ // hazy sky gradient
+  const c = document.createElement('canvas'); c.width = 4; c.height = 256;
+  const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256);
+  gr.addColorStop(0, '#7fb0c9'); gr.addColorStop(.45, '#b9d6d6'); gr.addColorStop(.62, '#cfe0cf'); gr.addColorStop(1, '#bfd3c4');
+  g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; scene.background = t;
+}
+scene.fog = new THREE.Fog(0xbfd3c4, 16, 52);
+const skyTex = scene.background, AIR = new THREE.Color(0xbfd3c4), MURK = new THREE.Color(0x4f6f63);
+let under = false;
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.02, 200);
+const HOME = { pos: V(6.4, 3.3, 6.6), tgt: V(0.3, 1.35, 0.2) };
+camera.position.copy(HOME.pos);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(HOME.tgt);
+controls.enableDamping = true; controls.minDistance = 0.15; controls.maxDistance = 30;
+controls.maxPolarAngle = Math.PI * 0.56;
+
+scene.add(new THREE.HemisphereLight(0xdcefe6, 0x4a4234, 1.15));
+const sun = new THREE.DirectionalLight(0xfff1d6, 2.3);
+sun.position.set(9, 16, 6); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16, near: 1, far: 50 });
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+scene.add(sun);
+
+/* ───────────── materials ───────────── */
+const M = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: .7, ...o });
+const mat = {
+  steel: M(0xb9c0c4, { metalness: .85, roughness: .35 }),
+  galv:  M(0x7f888c, { metalness: .6, roughness: .5 }),
+  black: M(0x15171a, { roughness: .45 }),
+  rubber: M(0x1b1c1e, { roughness: .9 }),
+  pvc:   M(0xe6e8e2, { roughness: .5 }),
+  box:   M(0xcfd3d2, { roughness: .6 }),
+  hose:  M(0x2e7a43, { roughness: .6 }),
+  red:   M(0xc8372d), white: M(0xf2f2ee), orange: M(0xf07a1c),
+  pcbK:  M(0x101214, { roughness: .5 }), pcbB: M(0x1746a8, { roughness: .5 }), pcbG: M(0x0f5a36, { roughness: .5 }),
+  gold:  M(0xd8b24a, { metalness: .9, roughness: .3 }),
+  blueLbl: M(0x1e55c8, { roughness: .35 }),
+  clear: new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: .08, transmission: .9, thickness: .01, transparent: true, opacity: .35 }),
+  frost: new THREE.MeshPhysicalMaterial({ color: 0xf4f6f4, roughness: .35, transparent: true, opacity: .72 }),
+  bark:  M(0x5b4636, { roughness: .95 }),
+  root:  M(0x6a503c, { roughness: .9 }),
+  leaf:  [0x2f6b3a, 0x3d7f45, 0x275a34, 0x4c8c4a].map(c => M(c, { roughness: .85, flatShading: true })),
+  sprout: M(0x6fb24e, { roughness: .7 }),
+};
+const mesh = (geo, m, shadow = true) => { const o = new THREE.Mesh(geo, m); o.castShadow = shadow; o.receiveShadow = true; return o; };
+const cyl = (r1, r2, h, m, seg = 16) => mesh(new THREE.CylinderGeometry(r1, r2, h, seg), m);
+const box = (w, h, d, m) => mesh(new THREE.BoxGeometry(w, h, d), m);
+const tube = (pts, r, m, seg = 24, rs = 6) => mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), seg, r, rs), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+
+/* ───────────── terrain ───────────── */
+const mudMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .0, side: THREE.DoubleSide });
+const CUT = { c: new THREE.Vector2(P.soil.x, P.soil.z), n: new THREE.Vector2(.466, .885), R: .32, D: .3, on: { value: 0 } };
+let subsoil;
+{
+  const g = new THREE.PlaneGeometry(90, 90, 180, 180); g.rotateX(-Math.PI / 2);
+  const p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color();
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i), h = ground(x, z); p.setY(i, h);
+    const n = .5 + .5 * Math.sin(x * 2.3 + Math.sin(z * 1.7) * 2) * Math.cos(z * 2.9);
+    c.setRGB(.215 + .05 * n + .04 * h, .16 + .035 * n + .04 * h, .11 + .02 * n + .02 * h);
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
+  const t = new THREE.Mesh(g, mudMat); t.receiveShadow = true; scene.add(t);
+  subsoil = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x2e251d, roughness: 1 }));
+  subsoil.position.y = -.45; subsoil.visible = false; scene.add(subsoil);
+}
+
+/* ───────────── water ───────────── */
+const WAVES = [ // weight, wavelength, period, direction offset
+  { w: 1.0, L: 6.0, T: 3.1, a: 0.00 }, { w: .6, L: 3.7, T: 2.3, a: .35 }, { w: .35, L: 2.3, T: 1.7, a: -.5 },
+].map(o => ({ ...o, k: 2 * Math.PI / o.L, om: 2 * Math.PI / o.T, dx: Math.cos(o.a), dz: Math.sin(o.a) }));
+const HS_PER_A = 4 * Math.sqrt(WAVES.reduce((s, o) => s + o.w * o.w, 0) / 2);   // Hs = 4σ
+const forestDamp = x => 1 - 0.8 * sstep(-1, -13, x);                             // roots take the energy out
+const waveShape = (x, z, t) => { let s = 0; for (const o of WAVES) s += o.w * Math.sin(o.k * (o.dx * x + o.dz * z) + o.om * t); return s; };
+
+const waterGeo = new THREE.PlaneGeometry(90, 90, 120, 120); waterGeo.rotateX(-Math.PI / 2);
+const wPos = waterGeo.attributes.position;
+const wDamp = new Float32Array(wPos.count);
+for (let i = 0; i < wPos.count; i++) wDamp[i] = forestDamp(wPos.getX(i));
+const water = new THREE.Mesh(waterGeo, new THREE.MeshPhysicalMaterial({
+  color: 0x3c7480, roughness: .1, metalness: 0, transparent: true, opacity: .62, side: THREE.DoubleSide, clearcoat: 1, clearcoatRoughness: .1 }));
+water.renderOrder = 2; scene.add(water);
+
+/* ───────────── mangrove forest ───────────── */
+const forest = new THREE.Group(); scene.add(forest);
+const blobGeo = new THREE.IcosahedronGeometry(1, 1);
+function mangrove(x, z, s) {
+  const g = new THREE.Group(); g.position.set(x, ground(x, z), z); g.rotation.y = rr(0, 6.28);
+  const rootH = rr(1.2, 2.1) * s, H = rr(5, 7.5) * s, r = rr(.07, .11) * s;
+  const lean = V(rr(-.5, .5), 0, rr(-.5, .5));
+  const top = V(lean.x, H * .72, lean.z);
+  g.add(tube([V(0, rootH * .45, 0), V(lean.x * .2, rootH, lean.z * .2), V(lean.x * .7, H * .5, lean.z * .7), top], r, mat.bark, 10, 7));
+  // stilt (prop) roots
+  const n = Math.round(rr(9, 14));
+  for (let i = 0; i < n; i++) {
+    const a = i / n * 6.283 + rr(-.25, .25), R = rr(.7, 1.9) * s, y0 = rootH * rr(.45, 1.1);
+    const end = V(Math.cos(a) * R, -.2, Math.sin(a) * R);
+    const c = new THREE.QuadraticBezierCurve3(V(0, y0, 0), V(Math.cos(a) * R * .8, y0 * rr(.8, 1.05), Math.sin(a) * R * .8), end);
+    g.add(mesh(new THREE.TubeGeometry(c, 10, rr(.022, .04) * s, 5), mat.root));
+    if (rnd() < .55) { // forked secondary root
+      const m = c.getPoint(.45), a2 = a + rr(-.6, .6), R2 = R + rr(.2, .6);
+      const c2 = new THREE.QuadraticBezierCurve3(m, V(Math.cos(a2) * R2 * .9, m.y * .8, Math.sin(a2) * R2 * .9), V(Math.cos(a2) * R2, -.2, Math.sin(a2) * R2));
+      g.add(mesh(new THREE.TubeGeometry(c2, 8, .018 * s, 5), mat.root));
+    }
+  }
+  // branches + canopy
+  const nb = Math.round(rr(4, 6));
+  for (let i = 0; i < nb; i++) {
+    const a = i / nb * 6.283 + rr(-.4, .4), L = rr(1.0, 2.0) * s;
+    const b0 = V(top.x * rr(.6, 1), H * rr(.5, .72), top.z * rr(.6, 1));
+    const b1 = V(b0.x + Math.cos(a) * L, H * rr(.8, 1), b0.z + Math.sin(a) * L);
+    g.add(tube([b0, b0.clone().lerp(b1, .5).add(V(0, .25, 0)), b1], r * .45, mat.bark, 6, 5));
+    for (let j = 0; j < 3; j++) {
+      const bl = mesh(blobGeo, mat.leaf[Math.floor(rnd() * 4)]);
+      const sc = rr(.75, 1.35) * s; bl.scale.set(sc * rr(1, 1.3), sc * .6, sc * rr(1, 1.3));
+      bl.position.set(b1.x + rr(-.7, .7), b1.y + rr(-.3, .5), b1.z + rr(-.7, .7)); bl.rotation.y = rr(0, 3);
+      g.add(bl);
+    }
+  }
+  const crown = mesh(blobGeo, mat.leaf[1]); crown.scale.set(1.5 * s, .8 * s, 1.5 * s); crown.position.set(top.x, H, top.z); g.add(crown);
+  forest.add(g);
+}
+const treeSpots = [];
+for (let tries = 0; treeSpots.length < 26 && tries < 4000; tries++) {
+  const x = rr(-22, 7), z = rr(-20, 20);
+  if (Math.hypot(x - .8, z - .3) < 4.6) continue;                 // clearing for the station and the beam
+  if (x > 2.5 && Math.abs(z) < 7.5) continue;                     // open water in front
+  if (treeSpots.some(t => Math.hypot(t[0] - x, t[1] - z) < 3.1)) continue;
+  treeSpots.push([x, z]); mangrove(x, z, rr(.8, 1.15));
+}
+// seedlings
+const leafGeo = new THREE.SphereGeometry(.055, 8, 6);
+function seedling(x, z, h = rr(.3, .55)) {
+  const g = new THREE.Group(); g.position.set(x, ground(x, z), z);
+  g.add(at(cyl(.005, .008, h, mat.root, 6), 0, h / 2, 0));
+  const n = Math.round(rr(4, 7));
+  for (let i = 0; i < n; i++) {
+    const l = mesh(leafGeo, mat.sprout), a = i * 2.4, y = h * (1 - .12 * Math.floor(i / 2));
+    l.scale.set(1.25, .14, .5); l.position.set(Math.cos(a) * .055, y, Math.sin(a) * .055);
+    l.rotation.set(0, -a, .55); g.add(l);
+  }
+  forest.add(g);
+}
+seedling(P.soil.x - .1, P.soil.z - .17, .5);
+for (let i = 0; i < 16; i++) { const x = rr(-6, 1.5), z = rr(-6, 6); if (Math.hypot(x - .5, z) > 1.6 && Math.hypot(x - P.soil.x, z - P.soil.z) > .6 && Math.hypot(x - P.redox.x, z - P.redox.z) > .4) seedling(x, z); }
+// pneumatophores (breathing roots)
+{
+  const N = 650, im = new THREE.InstancedMesh(new THREE.ConeGeometry(.012, 1, 5), mat.root, N), d = new THREE.Object3D();
+  const keep = [P.guard, P.tilt, P.soil, P.redox, P.staff, P.pole, V(1, 0, 0)];
+  let i = 0;
+  while (i < N) {
+    const x = rr(-20, 3.5), z = rr(-18, 18);
+    if (keep.some(k => Math.hypot(k.x - x, k.z - z) < .55)) continue;
+    const h = rr(.1, .3); d.position.set(x, ground(x, z) + h / 2 - .01, z); d.scale.set(1, h, 1);
+    d.rotation.set(rr(-.12, .12), 0, rr(-.12, .12)); d.updateMatrix(); im.setMatrixAt(i++, d.matrix);
+  }
+  im.castShadow = true; im.receiveShadow = true; forest.add(im);
+}
+
+/* ───────────── sensor station ───────────── */
+const pickables = [];
+const sensorGroup = key => { const g = new THREE.Group(); g.userData.key = key; pickables.push(g); scene.add(g); return g; };
+
+// pole, arm, brace (part of the wave gauge)
+const gUltra = sensorGroup('ultra');
+gUltra.add(at(cyl(.03, .03, 4.9, mat.galv), 0, 3.3 - 2.45, 0));                      // 1.6 m in the mud
+gUltra.add(at(box(1.12, .04, .04, mat.galv), .5, MOUNT_H + .13, 0));
+{ const b = box(.62, .025, .025, mat.galv); b.position.set(.27, MOUNT_H - .1, 0); b.rotation.z = Math.atan2(.42, .46); gUltra.add(b); }
+for (const y of [MOUNT_H + .1, MOUNT_H + .16]) { const u = mesh(new THREE.TorusGeometry(.036, .005, 6, 16), mat.steel); u.rotation.x = Math.PI / 2; u.position.set(0, y, 0); gUltra.add(u); }
+{ // sensor head
+  const h = new THREE.Group(); h.position.copy(P.ultra);
+  h.add(at(cyl(.1, .1, .008, mat.galv, 24), 0, .105, 0));                              // rain cap above
+  h.add(at(cyl(.012, .012, .08, mat.galv), 0, .09, 0));
+  h.add(at(cyl(.03, .03, .05, mat.black, 24), 0, .03, 0));
+  h.add(at(cyl(.036, .036, .012, mat.rubber, 24), 0, .006, 0));
+  h.add(at(cyl(.024, .024, .004, M(0x3a3d42, { metalness: .6, roughness: .3 }), 24), 0, -.001, 0)); // transducer face
+  gUltra.add(h);
+  gUltra.add(tube([V(1, MOUNT_H + .05, .03), V(.8, MOUNT_H + .1, .03), V(.1, MOUNT_H + .1, .03), V(.02, MOUNT_H, .05), V(.02, 2.75, .1), V(.05, 2.66, .12)], .005, mat.rubber, 30, 5));
+}
+// beam + ping (not pickable)
+const beam = new THREE.Mesh(new THREE.ConeGeometry(Math.tan(THREE.MathUtils.degToRad(11)), 1, 32, 1, true).translate(0, -.5, 0),
+  new THREE.MeshBasicMaterial({ color: 0x7fe3ff, transparent: true, opacity: .13, side: THREE.DoubleSide, depthWrite: false }));
+beam.position.copy(P.ultra); beam.renderOrder = 3; scene.add(beam);
+const ping = new THREE.Mesh(new THREE.TorusGeometry(1, .012, 6, 40).rotateX(Math.PI / 2),
+  new THREE.MeshBasicMaterial({ color: 0xbff3ff, transparent: true, opacity: .8, depthWrite: false }));
+ping.renderOrder = 4; scene.add(ping);
+
+// IP67 box with the electronics
+const gBox = sensorGroup('box');
+{
+  const b = new THREE.Group(); b.position.set(0, 2.45, .095); gBox.add(b);
+  b.add(box(.24, .32, .11, mat.box));
+  b.add(at(box(.22, .30, .004, M(0xe9ebe8)), 0, 0, .0565));                            // back plate seen through lid
+  b.add(at(box(.24, .32, .022, mat.clear), 0, 0, .069));                               // clear lid
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) b.add(at(cyl(.006, .006, .006, mat.steel, 8), sx * .105, sy * .145, .082)).children.at(-1).rotation.x = Math.PI / 2;
+  const z = .061;
+  // ESP32-S3-DevKitC-1
+  b.add(at(box(.028, .07, .003, mat.pcbK), -.07, .06, z)); b.add(at(box(.018, .024, .004, mat.steel), -.07, .08, z + .003));
+  b.add(at(box(.009, .007, .004, mat.steel), -.07, .027, z + .003));
+  // ADS1115, MAX485, relay, EC board, turbidity board
+  b.add(at(box(.018, .028, .003, mat.pcbB), -.025, .08, z));
+  b.add(at(box(.044, .014, .003, mat.pcbB), .05, .1, z)); b.add(at(box(.012, .01, .008, M(0x2a9d5c)), .068, .1, z + .005));
+  b.add(at(box(.026, .05, .003, mat.pcbK), -.07, -.06, z)); b.add(at(box(.016, .02, .016, M(0x1d63c9, { roughness: .4 })), -.07, -.055, z + .009));
+  for (const [x, y] of [[.0, -.05], [.06, -.05]]) {
+    b.add(at(box(.042, .032, .003, mat.pcbK), x, y, z));
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) b.add(at(box(.005, .005, .0035, mat.gold), x + sx * .017, y + sy * .012, z));
+    b.add(at(box(.01, .008, .006, mat.white), x, y - .01, z + .004));
+  }
+  b.add(at(cyl(.006, .006, .012, mat.gold, 10), .0, -.028, z + .006));               // BNC for the EC probe
+  b.add(at(box(.03, .02, .012, M(0xf3f3f3)), .04, .03, z + .004));                    // silica gel sachet
+  // PG7 glands under the box
+  for (let i = 0; i < 6; i++) { const x = -.09 + i * .036; b.add(at(cyl(.009, .009, .02, mat.rubber, 8), x, -.17, 0)); b.add(at(cyl(.012, .012, .008, M(0x2a2c30), 6), x, -.162, 0)); }
+  // straps round the pole
+  for (const y of [.1, -.1]) { const s = mesh(new THREE.TorusGeometry(.034, .004, 6, 16), mat.steel); s.rotation.x = Math.PI / 2; s.position.set(0, y, -.095); b.add(s); }
+}
+// ESP32-CAM watching the tide staff
+const gCam = sensorGroup('cam');
+{
+  const c = new THREE.Group(); c.position.set(.14, MOUNT_H + .08, -.04);
+  c.add(box(.034, .046, .02, mat.clear)); c.add(at(box(.027, .04, .003, mat.pcbK), 0, 0, -.004));
+  const lens = cyl(.005, .005, .009, mat.black, 12); lens.rotation.x = Math.PI / 2; lens.position.set(0, .008, .004); c.add(lens);
+  c.add(at(box(.018, .016, .003, mat.steel), 0, -.008, -.001));
+  c.lookAt(P.staff.x, 1.0, P.staff.z); gCam.add(c);
+  gCam.add(at(box(.03, .05, .004, mat.galv), .14, MOUNT_H + .1, -.03));
+}
+// tide staff: PVC with 10 cm bands
+const gStaff = sensorGroup('staff');
+{
+  const bg = new THREE.CylinderGeometry(.025, .025, .1, 14);
+  for (let i = 0; i < 23; i++) gStaff.add(at(mesh(bg, i % 2 ? mat.white : mat.red), P.staff.x, P.staff.y + .05 + i * .1, P.staff.z));
+  gStaff.add(at(cyl(.022, .022, .8, mat.pvc, 12), P.staff.x, P.staff.y - .4, P.staff.z));
+}
+
+// guard pipe with the three water probes
+const gProbes = sensorGroup('probes');
+{
+  const g = new THREE.Group(); g.position.copy(P.guard); gProbes.add(g);
+  const R = .045, Hh = .8, y0 = .05;
+  const pg = new THREE.CylinderGeometry(R, R, Hh, 28, 1, true, Math.PI / 2, Math.PI * 1.5);   // cut away toward the viewer
+  const pm = M(0xdfe2dc, { roughness: .5, side: THREE.DoubleSide });
+  g.add(at(mesh(pg, pm), 0, y0 + Hh / 2, 0));
+  // 10 mm holes
+  const hole = new THREE.InstancedMesh(new THREE.CylinderGeometry(.005, .005, .004, 8).rotateX(Math.PI / 2), M(0x1a1c1b), 60), d = new THREE.Object3D();
+  let n = 0;
+  for (let r = 0; r < 10; r++) for (let c = 0; c < 6; c++) {
+    const a = Math.PI / 2 + (c + .5 + (r % 2) * .5) / 6.5 * Math.PI * 1.5, y = y0 + .05 + r * .06;
+    d.position.set(Math.sin(a) * R, y, Math.cos(a) * R); d.lookAt(0, y, 0); d.updateMatrix(); hole.setMatrixAt(n++, d.matrix);
+  }
+  hole.position.set(0, 0, 0); g.add(hole);
+  // stake + ties
+  g.add(at(cyl(.008, .008, 1.7, mat.galv, 8), -.058, .25, -.02));
+  for (const y of [.2, .7]) { const t = mesh(new THREE.TorusGeometry(.052, .003, 5, 20), mat.black); t.rotation.x = Math.PI / 2; t.position.set(-.008, y, -.003); g.add(t); }
+  g.add(at(cyl(.012, .012, .5, mat.galv, 8).rotateZ(Math.PI / 2), 0, y0 + .5, 0)).children.at(-1).visible = false;
+  // EC probe DFR0300-H (K=10): black body, clear guard tip
+  const ec = new THREE.Group(); ec.position.set(-.012, .12, .014);
+  ec.add(at(cyl(.0065, .0065, .11, mat.black, 14), 0, .085, 0));
+  ec.add(at(cyl(.0085, .0085, .012, mat.frost, 14), 0, .03, 0));
+  ec.add(at(cyl(.0075, .0075, .03, mat.clear, 14), 0, .015, 0));
+  ec.add(at(box(.004, .012, .001, M(0x222222, { metalness: .5 })), 0, .014, 0));     // platinum-black plates
+  ec.add(at(cyl(.008, .0065, .014, mat.black, 14), 0, .147, 0));
+  ec.add(tube([V(0, .15, 0), V(0, .4, 0), V(.004, .76, 0)], .003, mat.rubber, 12, 5));
+  g.add(ec);
+  // turbidity SEN0189: translucent two-prong optical head, top sealed
+  const tb = new THREE.Group(); tb.position.set(.014, .15, -.012);
+  tb.add(at(cyl(.016, .016, .012, mat.frost, 18), 0, .026, 0));
+  tb.add(at(cyl(.019, .019, .005, mat.black, 18), 0, .034, 0));
+  for (const sx of [-1, 1]) { tb.add(at(cyl(.0055, .0055, .022, mat.frost, 12), sx * .0085, .01, 0)); tb.add(at(mesh(new THREE.SphereGeometry(.0055, 10, 8), mat.frost), sx * .0085, -.001, 0)); }
+  tb.add(at(cyl(.014, .016, .014, M(0x8a8f8c, { roughness: .9 }), 14), 0, .043, 0)); // marine sealant
+  tb.add(tube([V(0, .05, 0), V(.002, .35, 0), V(-.004, .73, .004)], .0028, M(0xc2372d), 12, 5));
+  g.add(tb);
+  // DS18B20 water temperature
+  const ds = new THREE.Group(); ds.position.set(-.004, .13, -.018);
+  ds.add(at(cyl(.003, .003, .05, mat.steel, 10), 0, .025, 0));
+  ds.add(at(cyl(.0034, .0034, .02, mat.black, 10), 0, .058, 0));
+  ds.add(tube([V(0, .06, 0), V(.003, .4, -.002), V(-.002, .74, 0)], .002, mat.rubber, 12, 5));
+  g.add(ds);
+}
+
+// tilt current meter (Build B)
+const gTilt = sensorGroup('tilt');
+const floatPivot = new THREE.Group();
+const floatBody = M(0xe6e8e2, { roughness: .5, transparent: true, opacity: 1 });
+{
+  const g = new THREE.Group(); g.position.copy(P.tilt); gTilt.add(g);
+  g.add(at(cyl(.008, .008, 1.0, mat.galv, 8), 0, -.4, 0));                             // stake
+  const eye = mesh(new THREE.TorusGeometry(.012, .003, 6, 14), mat.steel); eye.position.y = .11; g.add(eye);
+  floatPivot.position.y = .11; g.add(floatPivot);
+  floatPivot.add(at(cyl(.0025, .0025, .12, M(0xd8d2b8), 5), 0, .06, 0));              // braided cord + swivel
+  floatPivot.add(at(cyl(.005, .005, .02, mat.steel, 8), 0, .1, 0));
+  const eb = mesh(new THREE.TorusGeometry(.01, .003, 6, 14), mat.steel); eb.position.y = .125; floatPivot.add(eb);
+  floatPivot.add(at(cyl(.034, .034, .035, floatBody, 20), 0, .155, 0));               // bottom cap
+  floatPivot.add(at(cyl(.03, .03, .40, floatBody, 20), 0, .34, 0));                   // 40 cm of 2-inch PVC
+  floatPivot.add(at(cyl(.034, .034, .035, floatBody, 20), 0, .525, 0));               // top cap
+  floatPivot.add(at(cyl(.0305, .0305, .05, mat.orange, 20), 0, .47, 0));
+  floatPivot.add(at(cyl(.007, .007, .02, mat.rubber, 8), .018, .13, 0));              // PG7 gland
+  // MPU6050 near the pivot (seen in X-ray)
+  floatPivot.add(at(box(.016, .021, .002, mat.pcbB), 0, .2, 0)); floatPivot.add(at(box(.004, .004, .002, mat.black), 0, .2, .002));
+}
+
+// RS485 7-in-1 soil sensor + mud DS18B20, seen through the mud in X-ray mode
+const HOSE_END = V(P.soil.x + .10, P.soil.y + .014, P.soil.z - .14);
+const gSoil = sensorGroup('soil');
+{
+  const g = new THREE.Group(); g.position.copy(P.soil); gSoil.add(g);
+  const s = new THREE.Group(); s.position.y = -.15; s.rotation.y = Math.atan2(CUT.n.x, CUT.n.y); g.add(s);   // body bottom 15 cm down
+  // moulded body: rounded rectangle, 45 x 120 x 20 mm
+  const w = .045, h = .12, r = .009, sh = new THREE.Shape();
+  sh.moveTo(-w / 2 + r, 0); sh.lineTo(w / 2 - r, 0); sh.quadraticCurveTo(w / 2, 0, w / 2, r); sh.lineTo(w / 2, h - r * 1.6);
+  sh.quadraticCurveTo(w / 2, h, w / 2 - r * 1.6, h); sh.lineTo(-w / 2 + r * 1.6, h); sh.quadraticCurveTo(-w / 2, h, -w / 2, h - r * 1.6);
+  sh.lineTo(-w / 2, r); sh.quadraticCurveTo(-w / 2, 0, -w / 2 + r, 0);
+  const bodyGeo = new THREE.ExtrudeGeometry(sh, { depth: .012, bevelEnabled: true, bevelThickness: .004, bevelSize: .004, bevelSegments: 4, curveSegments: 8 }).translate(0, 0, -.006);
+  s.add(mesh(bodyGeo, M(0x0d0e10, { roughness: .28, metalness: .1 })));
+  // printed label
+  const lc = document.createElement('canvas'); lc.width = 160; lc.height = 384; const lx = lc.getContext('2d');
+  const lg = lx.createLinearGradient(0, 0, 160, 384); lg.addColorStop(0, '#2a6fe0'); lg.addColorStop(1, '#0f3fae');
+  lx.fillStyle = lg; lx.fillRect(0, 0, 160, 384);
+  lx.translate(80, 192); lx.rotate(-Math.PI / 2); lx.fillStyle = '#fff'; lx.textAlign = 'center';
+  lx.font = 'bold 40px Arial, "Microsoft YaHei", sans-serif'; lx.fillText('土壤综合传感器', 0, -8);
+  lx.font = '24px Arial, sans-serif'; lx.fillText('Soil Integrated Sensor', 0, 34);
+  const lt = new THREE.CanvasTexture(lc); lt.colorSpace = THREE.SRGBColorSpace; lt.anisotropy = 8;
+  const lbl = new THREE.Mesh(new THREE.PlaneGeometry(.035, .088), new THREE.MeshStandardMaterial({ map: lt, roughness: .3 }));
+  lbl.position.set(0, .062, .0102); s.add(lbl);
+  // resin-cast base with five stainless electrodes
+  s.add(at(box(.04, .008, .014, M(0x2b2e33, { roughness: .35, metalness: .3 })), 0, -.002, 0));
+  for (let i = -2; i <= 2; i++) {
+    s.add(at(cyl(.0026, .0026, .004, mat.rubber, 10), i * .0085, -.007, 0));
+    s.add(at(cyl(.0017, .0017, .058, mat.steel, 10), i * .0085, -.037, 0));
+    const tip = mesh(new THREE.ConeGeometry(.0017, .014, 10), mat.steel); tip.rotation.x = Math.PI; tip.position.set(i * .0085, -.073, 0); s.add(tip);
+  }
+  // strain relief and cable out of the top
+  s.add(at(cyl(.0075, .0095, .012, mat.rubber, 14), 0, .13, 0));
+  for (let i = 0; i < 4; i++) s.add(at(cyl(.0062 - i * .0006, .0062 - i * .0006, .003, mat.rubber, 12), 0, .139 + i * .0045, 0));
+  const e = HOSE_END.clone().sub(P.soil);
+  g.add(tube([V(0, 0, 0), V(0, .03, 0), V(.012, .055, -.02), V(.06, .05, -.085), V(e.x - .01, e.y + .012, e.z + .015), e], .0032, mat.rubber, 40, 6));
+}
+const gMudT = sensorGroup('mudtemp');
+{
+  const o = V(.09, 0, .07), g = new THREE.Group(); g.position.copy(P.soil).add(o); gMudT.add(g);
+  g.add(at(cyl(.003, .003, .044, mat.steel, 12), 0, -.118, 0));                        // stainless capsule at root depth
+  g.add(at(mesh(new THREE.SphereGeometry(.003, 12, 8), mat.steel), 0, -.14, 0));
+  g.add(at(cyl(.0036, .0036, .022, mat.rubber, 12), 0, -.088, 0));                     // heat-shrink
+  const e = HOSE_END.clone().sub(P.soil).sub(o);
+  g.add(tube([V(0, -.08, 0), V(0, -.02, 0), V(0, .03, 0), V(.006, .05, -.03), V(.012, .04, -.13), V(e.x + .008, e.y + .01, e.z + .02), e], .0022, mat.rubber, 40, 6));
+}
+// mud redox: three platinum tips on a stake at 5, 15 and 30 cm, and one reference electrode beside it
+const gRedox = sensorGroup('redox');
+{
+  const g = new THREE.Group(); g.position.copy(P.redox); gRedox.add(g);
+  const plat = M(0xe8e6e1, { metalness: .95, roughness: .18 });
+  g.add(at(cyl(.005, .005, .52, M(0xd9cfae, { roughness: .6 }), 10), 0, -.12, 0));     // fibreglass stake, 38 cm in the mud
+  g.add(at(cyl(.009, .009, .03, mat.rubber, 10), 0, .14, 0));                          // potted cable head
+  for (const [depth, colour] of [[.05, 0xd8a12a], [.15, 0x2f8f5a], [.30, 0x2a63c9]]) {
+    g.add(at(cyl(.0065, .0065, .012, M(colour, { roughness: .5 }), 10), 0, -depth + .012, 0));   // depth band
+    g.add(at(mesh(new THREE.SphereGeometry(.0055, 10, 8), mat.black), .006, -depth, 0));          // epoxy bead
+    const tip = cyl(.0012, .0012, .022, plat, 8); tip.rotation.z = Math.PI / 2; tip.position.set(.02, -depth, 0); g.add(tip);
+  }
+  // Ag/AgCl reference electrode: clear body, porous tip at 15 cm
+  const ref = new THREE.Group(); ref.position.set(.06, 0, .03); g.add(ref);
+  ref.add(at(cyl(.006, .006, .13, mat.frost, 14), 0, -.085, 0));
+  ref.add(at(cyl(.0015, .0015, .1, M(0x9a9a9a, { metalness: .7, roughness: .4 }), 6), 0, -.08, 0));
+  ref.add(at(cyl(.0045, .0045, .008, mat.white, 10), 0, -.154, 0));
+  ref.add(at(cyl(.0075, .0075, .022, mat.black, 14), 0, -.01, 0));
+  const e = HOSE_END.clone().sub(P.redox);
+  g.add(tube([V(0, .155, 0), V(-.012, .1, -.03), V(-.06, .03, -.14), V(e.x + .03, e.y + .014, e.z + .08), e], .0028, mat.rubber, 40, 6));
+  g.add(tube([V(.06, .0, .03), V(.05, .03, .0), V(-.03, .028, -.13), V(e.x + .04, e.y + .012, e.z + .07), e], .0022, mat.rubber, 40, 6));
+}
+// collar where the cables enter the hose
+{ const c = mesh(new THREE.SphereGeometry(.0145, 14, 10), mat.rubber); c.position.copy(HOSE_END); gSoil.add(c); }
+
+// garden-hose cable runs back to the box (crab armour)
+function hose(from, side, key) {
+  const pts = [], a = side, px = Math.cos(a) * .045, pz = Math.sin(a) * .045;
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10, x = THREE.MathUtils.lerp(from.x, px, t), z = THREE.MathUtils.lerp(from.z, pz, t), w = Math.sin(t * Math.PI) * .12 * Math.sin(side * 3);
+    pts.push(V(x + w * (from.z > 0 ? 1 : -1) * .5, ground(x, z) + .014, z + w));
+  }
+  pts.push(V(px, .25, pz), V(px, 1.6, pz), V(px * .8, 2.2, pz * .5 + .06), V(side * .02, 2.27, .095));
+  const h = tube(pts, .012, mat.hose, 80, 7); (key ? pickables.find(p => p.userData.key === key) : scene).add(h);
+}
+hose(V(P.guard.x - .02, 0, P.guard.z + .08), -1.2, 'probes');
+hose(V(P.tilt.x - .05, 0, P.tilt.z - .03), 1.1, 'tilt');
+hose(V(HOSE_END.x, 0, HOSE_END.z), 2.4, 'soil');   // also carries the redox cables
+gProbes.add(tube([V(P.guard.x, P.guard.y + .84, P.guard.z), V(P.guard.x - .01, P.guard.y + .9, P.guard.z + .03), V(P.guard.x - .02, P.guard.y + .5, P.guard.z + .075), V(P.guard.x - .02, P.guard.y + .02, P.guard.z + .08)], .012, mat.hose, 20, 7));
+
+/* ───────────── sensor catalogue (from the kit guide + shopping list) ───────────── */
+const SENSORS = {
+  ultra: { name: 'Ultrasonic wave & tide gauge (Build A)', label: 'Ultrasonic wave & tide gauge', lp: V(1, MOUNT_H + .6, 0),
+    tgt: V(.75, MOUNT_H - .15, 0), off: V(1.3, .1, 1.7), reads: ['Wave height', 'Water level', 'Flooded time', 'Mud level change'],
+    part: 'IP67 ultrasonic ranger, 3–450 cm, UART (A02YYUW-type) · RM80.64',
+    wire: 'TX → GPIO 18, 3.3 V. Samples 5 times a second.',
+    how: `Looks straight down from H = ${MOUNT_H.toFixed(1)} m. Water level η = H − d; wave height Hs = 4 × standard deviation of η. Keep roots, branches and the pole out of the cone. No extra hardware for the last two: flooded time counts the hours a day the logged level is above the mud, and at low tide the same beam hits the bare mud, so a shorter distance than at installation means mud has built up (about ±1 cm).` },
+  box: { name: 'IP67 node box', label: 'IP67 box · ESP32-S3', lp: V(0, 2.68, .12), tgt: V(0, 2.45, .12), off: V(.28, .05, .62), reads: ['All 10 → dashboard'],
+    part: 'ABS junction box RM33.48 · PG7 glands RM0.45 each · ESP32-S3-DevKitC-1 N16R8 RM43.95 · ADS1115 RM11.88 · relay RM5.90',
+    wire: 'ADS1115 on SDA 8 / SCL 9 (A2 EC, A3 turbidity). Relay on GPIO 10 powers the EC board only while it is read. MAX485 adapter for the soil sensor.',
+    how: 'Mounted above the high-water line plus wave crests, with a silica gel sachet inside.' },
+  cam: { name: 'ESP32-CAM', label: 'ESP32-CAM', lp: V(.14, MOUNT_H + .2, -.04), tgt: V(.14, MOUNT_H + .08, -.04), off: V(.35, .12, -.45), reads: ['Visual tide check'],
+    part: 'ESP32-CAM with OV2640 and ESP32-CAM-MB base · RM45.90', wire: 'Own board; powered from the box.',
+    how: 'Photographs the banded tide staff so the wave gauge can be checked against a picture.' },
+  staff: { name: 'Tide staff', label: 'Tide staff', lp: V(P.staff.x, P.staff.y + 2.4, P.staff.z), tgt: V(P.staff.x, 1.1, P.staff.z), off: V(1.6, .5, 2.2), reads: ['Reference'],
+    part: 'PVC pipe painted in 10 cm bands (hardware store)', wire: 'None.', how: 'Photos of the staff should agree with water_level_m within 3 cm.' },
+  probes: { name: 'Water probes in the guard pipe', label: 'Guard pipe · EC · turbidity · DS18B20', lp: V(P.guard.x, P.guard.y + .98, P.guard.z),
+    tgt: V(P.guard.x, P.guard.y + .2, P.guard.z), off: V(.36, .16, .36), reads: ['Salinity', 'Turbidity', 'Water temperature'],
+    part: 'DFRobot DFR0300-H EC K=10 · US$79.90 — DFRobot SEN0189 turbidity · RM99.90 — DS18B20 waterproof probe · RM2.89',
+    wire: 'EC → ADS A2 through the relay. Turbidity → ADS A3 through a 10 kΩ / 20 kΩ divider (5 V board). DS18B20 → GPIO 14 with a 4.7 kΩ pull-up.',
+    how: 'Perforated 2-inch PVC (10 mm holes), tips 10–15 cm above the bed. Salinity is worked out from conductivity and water temperature. Shown cut away so the probes are visible.' },
+  tilt: { name: 'Tilt current meter (Build B)', label: 'Tilt current meter', lp: V(P.tilt.x, P.tilt.y + .82, P.tilt.z),
+    tgt: V(P.tilt.x, P.tilt.y + .32, P.tilt.z), off: V(.25, .25, 1.15), reads: ['Wave velocity'],
+    part: '40 cm of 2-inch PVC, sealed · MPU6050 GY-521 near the pivot · RM9.99',
+    wire: 'Second I²C bus, SDA 41 / SCL 42 at 50 kHz, 5 V, 4-core shielded cable in garden hose.',
+    how: `Buoyancy holds it upright; moving water leans it over. v = k·√tan θ with k ≈ ${TILT_K}. Readings count only with at least 0.65 m of water.` },
+  soil: { name: 'RS485 7-in-1 soil sensor', label: 'RS485 soil sensor · mud DS18B20', lp: V(P.soil.x, P.soil.y + .3, P.soil.z),
+    tgt: V(P.soil.x + .03, P.soil.y - .09, P.soil.z + .02), off: V(.2, .33, .4), reads: ['Mud pH', 'Mud EC'], xray: true,
+    part: 'TOKOASIA RS485 7-in-1, IP68, with MAX485 adapter · RM260.54',
+    wire: 'RS485 Modbus, 4800 baud, pH at register 0x0003. Runs from the board\'s 5 V pin.',
+    how: 'Buried at a seedling\'s roots. About ±0.3 pH: enough to tell healthy mud (6–8) from acid-sulfate mud (below 5). EC may max out in seawater-soaked mud. N/P/K ignored. The mud turns see-through for this view.' },
+  redox: { name: 'Mud redox electrodes (microbe check)', label: 'Redox electrodes · 5 / 15 / 30 cm', lp: V(P.redox.x, P.redox.y + .55, P.redox.z),
+    tgt: V(P.redox.x + .02, P.redox.y - .14, P.redox.z), off: V(.26, .34, .44), reads: ['Mud redox (Eh)'], xray: true,
+    part: 'Three platinum-wire tips on a fibreglass stake · one Ag/AgCl reference electrode · ORP signal board. Not on the shopping list yet.',
+    wire: 'Each tip is measured against the shared reference through the ORP board (a high-impedance buffer that lifts the signal so values below zero can be read). Three analogue inputs: a second ADS1115 at address 0x49.',
+    how: 'Tips at 5, 15 and 30 cm beside a seedling. Eh = reading + about 200 mV (the Ag/AgCl correction). Above +100 mV: oxygen and nitrate users. +100 to −100: iron reducers, normal for mangrove mud. −100 to −200: sulfate reducers making sulfide that poisons roots. Below −200: methane makers. This shows which microbes the mud can support, not which species live there: that needs a DNA test of a mud sample. Wipe the tips and check the reference every month. The mud turns see-through for this view.' },
+  mudtemp: { name: 'Mud temperature probe', label: null, tgt: V(P.soil.x + .08, P.soil.y - .08, P.soil.z + .06), off: V(.17, .3, .34), reads: ['Mud temperature'], xray: true,
+    part: 'DS18B20 waterproof stainless probe · RM2.89', wire: '1-Wire, with the water probe on GPIO 14 (4.7 kΩ pull-up).',
+    how: 'Pushed into the mud at root depth to log sediment temperature around roots and seedlings.' },
+};
+
+/* ───────────── the ten parameters, and two worked out from the wave gauge ───────────── */
+const band3 = (v, ok, bad) => v <= ok ? 'ok' : v <= bad ? 'warn' : 'bad';
+const tempBand = v => v >= 20 && v <= 32 ? 'ok' : v >= 15 && v <= 36 ? 'warn' : 'bad';
+const PARAMS = [
+  { id: 'sal',  nm: 'Salinity',          u: 'PSU',   d: 1, s: 'probes', wet: 1, st: v => band3(v, 35, 45) },
+  { id: 'turb', nm: 'Turbidity',         u: 'NTU',   d: 0, s: 'probes', wet: 1, st: v => band3(v, 25, 100) },
+  { id: 'wt',   nm: 'Water temperature', u: '°C',    d: 1, s: 'probes', wet: 1, st: tempBand },
+  { id: 'hs',   nm: 'Wave height',       u: 'm',     d: 2, s: 'ultra',  st: v => band3(v, .5, 1) },
+  { id: 'lvl',  nm: 'Water level (tide)', u: 'm',    d: 2, s: 'ultra',  st: () => 'info' },
+  { id: 'vel',  nm: 'Wave velocity',     u: 'm/s',   d: 2, s: 'tilt',   st: v => band3(v, .5, 1) },
+  { id: 'ph',   nm: 'Mud pH',            u: '',      d: 1, s: 'soil',   st: v => v >= 6 && v <= 8 ? 'ok' : v >= 5 ? 'warn' : 'bad' },
+  { id: 'mec',  nm: 'Mud EC',            u: 'mS/cm', d: 1, s: 'soil',   st: () => 'info' },
+  { id: 'mt',   nm: 'Mud temperature',   u: '°C',    d: 1, s: 'mudtemp', st: tempBand },
+  { id: 'eh',   nm: 'Mud redox (Eh, 15 cm)', u: 'mV', d: 0, s: 'redox',  st: v => v >= -100 ? 'ok' : v >= -200 ? 'warn' : 'bad' },
+  { id: 'fld',  nm: 'Flooded time',      u: 'h/day', d: 1, s: 'ultra',  st: v => band3(v, 10, 14) },
+  { id: 'bed',  nm: 'Mud level change',  u: 'cm',    d: 1, s: 'ultra',  st: v => Math.abs(v) <= 2 ? 'ok' : Math.abs(v) <= 5 ? 'warn' : 'bad' },
+];
+const WORD = { ok: 'Healthy', warn: 'Watch', bad: 'Danger', info: '', off: '' };
+for (const p of PARAMS) {
+  const b = document.createElement('button'); b.className = 'card'; b.dataset.s = 'off';
+  b.innerHTML = `<span class="bar"></span><span class="nm">${p.nm}</span><span class="val">–</span><span class="st">&nbsp;</span>`;
+  b.onclick = () => focusOn(p.s); $('cards').append(b);
+  p.el = b; p.vEl = b.querySelector('.val'); p.sEl = b.querySelector('.st');
+}
+function setCard(p, v, note, forced) {
+  const s = forced || p.st(v);
+  p.el.dataset.s = s;
+  p.vEl.innerHTML = (v == null ? '–' : v.toFixed(p.d)) + (p.u ? `<small>${p.u}</small>` : '');
+  p.sEl.textContent = [WORD[s], note].filter(Boolean).join(' · ') || ' ';
+}
+
+/* ───────────── labels, picking, focus ───────────── */
+const labels = [];
+for (const [k, s] of Object.entries(SENSORS)) if (s.label) {
+  const el = document.createElement('div'); el.className = 'lbl'; el.textContent = s.label; el.onclick = () => focusOn(k);
+  $('labels').append(el); labels.push({ el, pos: s.lp });
+}
+let fly = null, selected = null, autoX = false;
+function focusOn(key) {
+  const s = SENSORS[key]; if (!s) return;
+  selected = key;
+  fly = { t: 0, p0: camera.position.clone(), t0: controls.target.clone(), p1: s.tgt.clone().add(s.off), t1: s.tgt.clone() };
+  if (s.xray && !S.xray) { setXray(true); autoX = true; }
+  else if (!s.xray && autoX) { setXray(false); autoX = false; }
+  $('infoBody').innerHTML = `<h2>${s.name}</h2><div>${s.reads.map(r => `<span class="chip">${r}</span>`).join('')}</div>
+    <dl><dt>Part</dt><dd>${s.part}</dd><dt>Wiring</dt><dd>${s.wire}</dd><dt>On site</dt><dd>${s.how}</dd></dl>`;
+  $('info').style.display = 'block';
+  for (const p of PARAMS) p.el.classList.toggle('sel', p.s === key || (key === 'soil' && p.s === 'mudtemp'));
+}
+$('infoX').onclick = () => { $('info').style.display = 'none'; selected = null; PARAMS.forEach(p => p.el.classList.remove('sel')); };
+controls.addEventListener('start', () => { fly = null; });
+
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+const keyAt = e => {
+  mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects(pickables, true)[0]; if (!hit) return null;
+  let o = hit.object; while (o && !o.userData.key) o = o.parent; return o ? o.userData.key : null;
+};
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => downAt = [e.clientX, e.clientY]);
+renderer.domElement.addEventListener('pointerup', e => {
+  if (downAt && Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) < 5) { const k = keyAt(e); if (k) focusOn(k); }
+});
+renderer.domElement.addEventListener('pointermove', e => { if (!e.buttons) renderer.domElement.style.cursor = keyAt(e) ? 'pointer' : 'grab'; });
+
+/* ───────────── controls / state ───────────── */
+const S = { tide: .95, hs: .3, cur: .25, fld: 7, bed: 1.5, auto: false, xray: false, labels: true };
+const buf = { eta: [], vel: [] }, NBUF = 100;       // 20 s at 5 Hz
+const showSliders = () => { $('vTide').textContent = S.tide.toFixed(2) + ' m'; $('vWave').textContent = S.hs.toFixed(2) + ' m'; $('vCur').textContent = S.cur.toFixed(2) + ' m/s';
+  $('vFld').textContent = S.fld.toFixed(1) + ' h'; $('vBed').textContent = (S.bed > 0 ? '+' : '') + S.bed.toFixed(1) + ' cm'; };
+$('sTide').oninput = e => { S.tide = +e.target.value; buf.eta.length = 0; showSliders(); };
+$('sWave').oninput = e => { S.hs = +e.target.value; showSliders(); };
+$('sCur').oninput = e => { S.cur = +e.target.value; showSliders(); };
+// The real node counts flooded hours from days of water-level log and sees the mud level at each low tide.
+// A 3D page cannot wait for days, so these two sliders stand in for that history.
+$('sFld').oninput = e => { S.fld = +e.target.value; showSliders(); };
+$('sBed').oninput = e => { S.bed = +e.target.value; showSliders(); };
+$('bAuto').onclick = e => { S.auto = !S.auto; e.target.classList.toggle('on', S.auto); autoPhase = Math.asin(clamp(S.tide / .9 - 1, -1, 1)); };
+function setXray(on) {
+  S.xray = on; $('bXray').classList.toggle('on', on);
+  mudMat.transparent = on; mudMat.opacity = on ? .3 : 1; mudMat.depthWrite = !on; mudMat.needsUpdate = true;
+  subsoil.visible = on;
+  floatBody.opacity = on ? .4 : 1; floatBody.depthWrite = !on;
+}
+$('bXray').onclick = () => { autoX = false; setXray(!S.xray); };
+$('bLbl').onclick = e => { S.labels = !S.labels; e.target.classList.toggle('on', S.labels); $('labels').style.display = S.labels ? '' : 'none'; };
+$('bReset').onclick = () => { fly = { t: 0, p0: camera.position.clone(), t0: controls.target.clone(), p1: HOME.pos.clone(), t1: HOME.tgt.clone() }; };
+showSliders();
+let autoPhase = 0;
+
+/* ───────────── simulation ───────────── */
+const noise = a => (Math.random() - .5) * 2 * a;
+function stdDetrended(a) {            // remove the slow tide, keep the waves
+  const n = a.length; let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (let i = 0; i < n; i++) { sx += i; sy += a[i]; sxx += i * i; sxy += i * a[i]; }
+  const b = (n * sxy - sx * sy) / (n * sxx - sx * sx), c = (sy - b * sx) / n; let v = 0;
+  for (let i = 0; i < n; i++) { const r = a[i] - c - b * i; v += r * r; }
+  return Math.sqrt(v / n);
+}
+const pct = (a, q) => { const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(q * s.length))]; };
+
+let tiltAng = 0, lastSample = 0, lastUI = 0, wet = { sal: null, turb: null, wt: null };
+// Mud redox follows the flooded hours: about +190 mV in mud that is never flooded, 19 mV lower per flooded hour a day.
+const ehTarget = () => 190 - 19 * S.fld;
+let eh = ehTarget(), bedSeen = null;
+const clock = new THREE.Clock(); const tmp = new THREE.Vector3();
+
+function tick() {
+  const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
+
+  if (S.auto) { autoPhase += dt * 2 * Math.PI / 70; S.tide = clamp(.9 + .9 * Math.sin(autoPhase), 0, 1.8); $('sTide').value = S.tide; showSliders(); }
+  const eta0 = S.tide;                                   // still-water depth over the mud at the gauge
+  const hsEff = Math.min(S.hs, .6 * eta0);               // waves break when the water is shallow
+  const A = hsEff / HS_PER_A;
+
+  // water surface
+  water.position.y = eta0 > .02 ? eta0 : -.07;
+  for (let i = 0; i < wPos.count; i++) wPos.setY(i, A * wDamp[i] * waveShape(wPos.getX(i), wPos.getZ(i), t));
+  wPos.needsUpdate = true; waterGeo.computeVertexNormals();
+
+  // ultrasonic: distance to the surface right under the sensor
+  const etaInst = Math.max(0, eta0 + A * forestDamp(P.ultra.x) * waveShape(P.ultra.x, P.ultra.z, t));
+  const d = MOUNT_H - etaInst;
+  beam.scale.setScalar(d);
+  const ph = (t * 1.6) % 1; ping.position.set(P.ultra.x, MOUNT_H - d * ph, 0);
+  ping.scale.setScalar(Math.max(.01, Math.tan(.192) * d * ph)); ping.material.opacity = .85 * (1 - ph);
+
+  // tilt meter: current plus the wave orbital velocity u ≈ (Hs/2)·√(g/h)
+  const uOrb = eta0 > .1 ? (hsEff / 2) * Math.sqrt(9.81 / eta0) : 0;
+  const vNow = S.cur + uOrb * Math.sin(WAVES[0].k * P.tilt.x + WAVES[0].om * t);
+  let target = Math.sign(vNow || 1) * Math.atan((vNow / TILT_K) ** 2);
+  const stand = Math.acos(clamp(eta0 / .56, .08, 1));    // not enough water to float upright
+  if (Math.abs(target) < stand) target = stand;
+  tiltAng += (clamp(target, -1.45, 1.45) - tiltAng) * Math.min(1, dt * 5);
+  floatPivot.rotation.z = tiltAng;
+
+  // 5 Hz sampling, like the firmware
+  if (t - lastSample >= .2) {
+    lastSample = t;
+    buf.eta.push(MOUNT_H - (d + noise(.004))); if (buf.eta.length > NBUF) buf.eta.shift();
+    buf.vel.push(TILT_K * Math.sqrt(Math.tan(Math.min(1.45, Math.abs(tiltAng) + Math.abs(noise(.01)))))); if (buf.vel.length > NBUF) buf.vel.shift();
+  }
+
+  if (t - lastUI >= .5) { lastUI = t; updateCards(t, eta0, hsEff, uOrb); }
+
+  // camera fly-to
+  if (fly) {
+    fly.t = Math.min(1, fly.t + dt / 1.3); const k = fly.t * fly.t * (3 - 2 * fly.t);
+    camera.position.lerpVectors(fly.p0, fly.p1, k); controls.target.lerpVectors(fly.t0, fly.t1, k);
+    if (fly.t >= 1) fly = null;
+  }
+  controls.update();
+  const u = eta0 > .02 && camera.position.y < water.position.y;       // murky view below the surface
+  if (u !== under) { under = u; scene.fog.color.copy(u ? MURK : AIR); scene.fog.near = u ? .2 : 16; scene.fog.far = u ? 7 : 52; scene.background = u ? MURK : skyTex; }
+  renderer.render(scene, camera);
+
+  if (S.labels) for (const l of labels) {
+    tmp.copy(l.pos).project(camera);
+    const vis = tmp.z < 1 && Math.abs(tmp.x) < 1.05 && Math.abs(tmp.y) < 1.05 && camera.position.distanceTo(l.pos) < 22;
+    l.el.style.display = vis ? '' : 'none';
+    if (vis) { l.el.style.left = ((tmp.x + 1) / 2 * innerWidth) + 'px'; l.el.style.top = ((1 - tmp.y) / 2 * innerHeight - 12) + 'px'; }
+  }
+}
+
+function updateCards(t, eta0, hsEff, uOrb) {
+  const f = eta0 / 1.8, by = Object.fromEntries(PARAMS.map(p => [p.id, p]));
+  const lvl = buf.eta.length ? buf.eta.reduce((a, b) => a + b, 0) / buf.eta.length : eta0;
+  const submerged = lvl >= .25;
+
+  // water probes (hold the last wet value when the tide leaves them)
+  if (submerged) {
+    wet.wt = 29.6 + .5 * Math.sin(t / 40) - .9 * f + noise(.03);
+    wet.sal = 20 + 11.5 * f + noise(.15);
+    wet.turb = clamp(8 + 55 * hsEff + 32 * S.cur + noise(1.2), 1, 3000);
+  }
+  const ec = wet.sal == null ? null : wet.sal * 1.55 * (1 + .02 * (wet.wt - 25));
+  const dry = submerged ? null : 'off';
+  setCard(by.sal, wet.sal, submerged ? `EC ${ec.toFixed(0)} mS/cm` : 'Probe out of water', dry);
+  setCard(by.turb, wet.turb, submerged ? '' : 'Probe out of water', dry);
+  setCard(by.wt, wet.wt, submerged ? '' : 'Probe out of water', dry);
+
+  // wave gauge
+  const ready = buf.eta.length >= 25;
+  setCard(by.hs, ready ? 4 * stdDetrended(buf.eta) : null, ready ? `Hs = 4σ · d ${(MOUNT_H - lvl).toFixed(2)} m` : 'Collecting burst…', ready ? null : 'off');
+  setCard(by.lvl, Math.max(0, lvl), lvl < .03 ? 'Mud exposed' : lvl < .65 ? 'Shallow flood' : 'Forest floor flooded');
+
+  // tilt meter
+  if (lvl >= .65 && buf.vel.length >= 25) {
+    const v90 = pct(buf.vel, .9);
+    setCard(by.vel, v90, `tilt ${(Math.atan((v90 / TILT_K) ** 2) * 57.3).toFixed(0)}° · gauge est. ${(S.cur + uOrb).toFixed(2)}`);
+  } else setCard(by.vel, null, lvl < .65 ? 'Float not under water' : 'Collecting burst…', 'off');
+
+  // mud sensors
+  const mec = 18 + 27 * f + noise(.2);
+  setCard(by.ph, 6.85 + .2 * f + noise(.03), '±0.3 pH electrodes');
+  setCard(by.mec, mec, mec > 42 ? 'Near sensor range limit' : 'Root-zone conductivity');
+  setCard(by.mt, 28.1 + .25 * Math.sin(t / 90) - .3 * f + noise(.02), 'Root depth');
+
+  // mud redox: the mud loses or regains oxygen slowly, so the reading glides to its new level
+  eh += (ehTarget() - eh) * .08;
+  const ehNow = eh + noise(3);
+  setCard(by.eh, ehNow, ehNow >= 100 ? 'Oxygen-rich · helpful microbes active' : ehNow >= -100 ? 'Iron reducers · normal mangrove mud'
+    : ehNow >= -200 ? 'Sulfate reducers · sulfide building' : 'Methane makers · roots poisoned');
+
+  // worked out from the wave gauge: flooded time, and the mud level whenever the tide leaves the mud bare
+  setCard(by.fld, S.fld, S.fld <= 10 ? 'From the water-level log' : 'Mud is losing oxygen');
+  if (eta0 < .02) bedSeen = S.bed + noise(.3);
+  if (bedSeen == null) setCard(by.bed, null, 'Measured at low tide', 'off');
+  else setCard(by.bed, bedSeen, (bedSeen > 0 ? 'Mud building up' : 'Mud washing away') + (eta0 < .02 ? '' : ' · last low tide'));
+}
+
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+window.__sceneReady = true;
+window.__dbg = { S, camera, controls, focusOn, setXray };
+renderer.setAnimationLoop(tick);
+</script>
+</body>
+</html>
