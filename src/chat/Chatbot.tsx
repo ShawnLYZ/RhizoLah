@@ -168,7 +168,7 @@ export function ChatButton() {
       title="Ask RhizoLah! (AI answers from the Knowledgebase)"
       data-testid="chat-button"
     >
-      <Sparkles size={18} aria-hidden="true" /> <span className="chat-fab-word">RhizoAI</span>
+      <Sparkles size={18} aria-hidden="true" /> <span className="chat-fab-word">AskLah!</span>
     </button>
   )
 }

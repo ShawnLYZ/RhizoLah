@@ -1,8 +1,8 @@
-# RhizoLah!
+# RhizoLah! | Blue Carbon Sentinel
 
 A browser-based demonstration of mangrove monitoring at Kuala Selangor Nature Park, Malaysia. Explore the site on a satellite map, compare it with a 3D forest, follow environmental readings, and try danger detection and replanting scenarios. With **Add Location** you can pick any 500 × 500 m square on Earth and the app generates a matching 3D forest for it from the live satellite image.
 
-This repository contains a frontend demo built with React, TypeScript and Vite. Sensor readings, camera activity, replanting scans and the text labelled "AI Suggestion" are simulated or generated locally. Satellite imagery comes from Mapbox. The one real AI feature is the **RhizoAI** chat, which uses the SEA-LION API and needs a SEA-LION API key (optional; everything else works without it). You do not need a backend, database or connected ESP32 board to run it.
+This repository contains a frontend demo built with React, TypeScript and Vite. Sensor readings, camera activity, replanting scans and the text labelled "AI Suggestion" are simulated or generated locally. Satellite imagery comes from Mapbox. The one real AI feature is the **AskLah!** chat, which uses the SEA-LION API and needs a SEA-LION API key (optional; everything else works without it). You do not need a backend, database or connected ESP32 board to run it.
 
 - [Product overview](#product-overview)
 - [Set up the project](#set-up-the-project)
@@ -30,19 +30,19 @@ See the Malaysian site catalogue, mangrove area, forest health and camera status
 
 Compare Mapbox satellite imagery on the left (captioned with the site name, or its latitude and longitude when it has none) with a 3D model of the same forest on the right. For Kuala Selangor the model uses stored, hand-traced canopy and water outlines. For any other site it is generated from the satellite image each time the site is opened. Drag to rotate the model, scroll to zoom, and select Sensor post 9 (the live post) to open its readings in Sentinel Network. Every post is labelled on the model ("Post 1" to "Post 10"), including the ones that are not live.
 
-![Satellite Intelligence showing the 500 by 500 metre satellite image of Kuala Selangor beside its 3D mangrove model and ten labelled sensor posts, with Sensor post 9 live](docs/images/satellite-intelligence.png)
+![Satellite Intelligence showing the 500 by 500 metre satellite image beside its 3D mangrove model and ten sensor posts](docs/images/satellite-intelligence.png)
 
 ### 3. Sentinel Network
 
 Follow ten measurements updated every two seconds: salinity, turbidity, water temperature, wave height, water level, wave velocity, mud pH, mud EC, mud temperature and mud redox. Mud redox is the microbe check: it shows how much oxygen the mud holds, and so which microbes it can support. Below -100 mV, sulfide-making microbes take over from the helpful ones. Each card shows a value, trend and health status. The first row also has two lists, **Mangrove Species** and **Soil Type** (both start at None; each card reads "Select for Calibration"). Choosing one colours the trees or the ground in the Digital Twin's Natural colours and Growth Simulation views; the colours are illustrative and change nothing else. The camera panel displays a photo after a simulated danger event, and the station map shows its location.
 
-![Sentinel Network showing Sensor post 9 healthy, the Mangrove Species and Soil Type lists, the mud redox and water sensor cards, the camera panel and the station location map](docs/images/sentinel-network.png)
+![Sentinel Network showing the Mangrove Species and Soil Type choices, healthy sensor cards, the camera panel and the station location map](docs/images/sentinel-network.png)
 
 ### 4. Digital Twin
 
 Explore the 3D forest in natural colours or select a measurement layer. Hover over a sensor post to see its coordinates and all nine readings; click the post to pin the card. Replant Areas are filled and outlined in mint and labelled "Suitable to Plant", "Planted, growing" or "Grown"; point at the label for the AI Suggestion card, click it to pin. The card leads with a photo of the suggested species and four answers: Mangrove Species, Soil Type, Number of Seedlings for the empty area, and the Distance between seedlings (a square grid; Rhizophora spacings are Matang's, the other species use demo guide values). The reasons, sources and Readings fold away under **Why this suggestion** and scroll. Pin the card and point at **Cost** (bottom right) for everything it would take to finish planting the area: seedlings, stakes, labour, transport, any soil or mud the advice asks for, replacing first-year losses, site preparation and monitoring. The prices are demo estimates in ringgit, set in `src/sim/planting.ts`. The last layer, **Growth Simulation**, previews seeds growing into trees in the Replant Areas over 15 years (Play runs it in about 10 seconds). Its panel also shows the **Estimated CO₂ reduced** by the planted trees at the chosen year: above-ground only, from Matang's measured biomass (K4) scaled by the K3 growth curves and the plants still standing. Monitoring stays at Year 1 in this demo.
 
-![Digital Twin showing the 3D forest, measurement layers, labelled sensor posts, a Replant Area marked Suitable to Plant and the pinned reading card of Sensor post 9](docs/images/digital-twin.png)
+![Digital Twin showing the 3D forest, measurement layers, labelled sensor posts and the pinned reading card for Sensor post 9](docs/images/digital-twin.png)
 
 ## Set up the project
 
@@ -74,16 +74,16 @@ Both commands should print a version number. If either command is unrecognised, 
 If you use Git, run these commands from the directory where you keep projects:
 
 ```sh
-git clone https://github.com/ShawnLYZ/RhizoLah.git
-cd RhizoLah
+git clone https://github.com/ShawnLYZ/Blue-Carbon-Sentinel.git
+cd Blue-Carbon-Sentinel
 ```
 
-Alternatively, open the [GitHub repository](https://github.com/ShawnLYZ/RhizoLah), select **Code → Download ZIP**, and extract the ZIP. Open a terminal in the extracted folder containing `package.json`. The folder may be named `RhizoLah-main`.
+Alternatively, open the [GitHub repository](https://github.com/ShawnLYZ/Blue-Carbon-Sentinel), select **Code → Download ZIP**, and extract the ZIP. Open a terminal in the extracted folder containing `package.json`. The folder may be named `Blue-Carbon-Sentinel-main`.
 
 On Windows, you can open that folder in File Explorer, click the address bar, type `powershell`, and press Enter. You can also change directory manually, replacing this example with your actual folder:
 
 ```powershell
-cd "C:\path\to\RhizoLah"
+cd "C:\path\to\Blue-Carbon-Sentinel"
 ```
 
 ### Step 3: Configure the Mapbox token
@@ -121,9 +121,9 @@ Use a public token for this browser application. Vite includes `VITE_` values in
 
 The sensors and 3D demo can run without a token, but the map panels will show "Satellite image unavailable". After changing `.env.local`, stop and restart the development server. Rebuild if you are using a production build.
 
-#### Optional: the SEA-LION key for RhizoAI
+#### Optional: the SEA-LION key for AskLah!
 
-The **RhizoAI** chat calls [SEA-LION](https://sea-lion.ai/), AI Singapore's Southeast Asian language model. Get an API key from the [SEA-LION playground](https://playground.sea-lion.ai/) and add it to the same `.env.local` file:
+The **AskLah!** chat calls [SEA-LION](https://sea-lion.ai/), AI Singapore's Southeast Asian language model. Get an API key from the [SEA-LION playground](https://playground.sea-lion.ai/) and add it to the same `.env.local` file:
 
 ```env
 SEALION_API_KEY=sk-paste_your_key_here
@@ -208,9 +208,9 @@ The camera panel also has a **SaveLah!** action when its generated warning or da
 
 Kuala Selangor has three predefined patches; an added site has up to three, found from its image, and may have none. After a site's patches have all been used, a scan reports that no suitable empty area was found. Use **Reset demo** to make the patches available again. The year stays at 1; trees appear only in the Growth Simulation preview.
 
-### Ask RhizoAI about the forest
+### AskLah! about the forest
 
-Select **RhizoAI** in the top bar (left of the Knowledgebase). A chat window opens at the top right; the page under it keeps working, and **Esc** or the **×** closes it. Pick a suggested question or type your own, in English or Malay.
+Select **AskLah!** in the top bar (left of the Knowledgebase). A chat window opens at the top right; the page under it keeps working, and **Esc** or the **×** closes it. Pick a suggested question or type your own, in English or Malay.
 
 Each question is sent with the Knowledgebase (the seven built-in sources, as short facts with page numbers where known) and a snapshot of what is on screen at that moment: the Current Site, all ten readings and their Bands, any danger episode, the camera, Replant Areas with their Species Suggestion and mud check, and open tasks. The model is told to answer only from those. Every sentence ends with a source box, the same as "Suitable to Plant" in the Digital Twin: a numbered book box opens that source in the Knowledgebase, and a green **Live** box marks a fact from the simulated readings (it opens the Sentinel Network). If the Knowledgebase does not cover a question, the answer says so. If an answer cites no Knowledgebase source, a warning shows under it.
 
@@ -327,7 +327,7 @@ The stack is React for the interface, Mapbox GL JS for maps, three.js for the fo
 ## Project structure
 
 ```text
-RhizoLah/
+Blue-Carbon-Sentinel/
 ├── README.md                   # Overview and setup guide
 ├── .env.example                # Template for the Mapbox token and SEA-LION key
 ├── camera-photos/              # Optional custom danger camera images
@@ -339,7 +339,7 @@ RhizoLah/
 │   └── species-photos/         # One photo per Mangrove Species for the AI Suggestion card, with credits
 ├── src/
 │   ├── app/                   # App shell, navigation and top menu
-│   ├── chat/                  # RhizoAI chat: Knowledgebase facts, live situation snapshot, SEA-LION chat window
+│   ├── chat/                  # AskLah! chat: Knowledgebase facts, live situation snapshot, SEA-LION chat window
 │   ├── forest/                # 3D scene, forest generator (survey, classify, model, layout) and worker
 │   ├── geo/                   # Coordinates and each site's monitored square
 │   ├── maps/                  # Mapbox setup, globe and site maps
@@ -368,8 +368,8 @@ For changes to sensor bands, start with `src/sim/ranges.ts`. Simulation timing i
 | Dependency installation fails | Check your internet connection and npm's error message. After resolving the reported issue, rerun `npm ci`. |
 | Port 5173 is already in use | Stop the other server using that port, then try again. The project's strict port setting prevents an automatic switch. For a separate port, use `npm run dev -- --port 5174` and allow that address in your Mapbox token restrictions. |
 | The browser did not open | Open the local URL printed by Vite, normally [http://localhost:5173](http://localhost:5173). Keep the server terminal open. |
-| RhizoAI says "No SEA-LION key" or "The SEA-LION key was refused" | Add or correct `SEALION_API_KEY` in `.env.local` (no quotes, no `VITE_` prefix), then restart `npm run dev`. |
-| RhizoAI says the chat service is only available with npm run dev | The chat relay runs inside the Vite server. Use `npm run dev` or `npm run preview`, not another web server for `dist`. |
+| AskLah! says "No SEA-LION key" or "The SEA-LION key was refused" | Add or correct `SEALION_API_KEY` in `.env.local` (no quotes, no `VITE_` prefix), then restart `npm run dev`. |
+| AskLah! says the chat service is only available with npm run dev | The chat relay runs inside the Vite server. Use `npm run dev` or `npm run preview`, not another web server for `dist`. |
 | "Satellite image unavailable" | Check your connection, the public token, the exact `VITE_MAPBOX_TOKEN` name and the location of `.env.local`. Check allowed URLs if the token is restricted. Restart Vite after editing the file. |
 | The token seems correct but maps still fail | Check the browser console and network panel for Mapbox errors. A rejected token, blocked request or account access issue must be resolved before imagery can load. |
 | The 3D view is unavailable or slow | Enable browser graphics acceleration, restart the browser and close other GPU-heavy tabs. The model also lowers quality automatically when performance drops. |

@@ -1,5 +1,5 @@
 @echo off
-title RhizoLah! demo
+title Blue Carbon Sentinel demo
 cd /d "%~dp0"
 where node >nul 2>nul
 if errorlevel 1 (
